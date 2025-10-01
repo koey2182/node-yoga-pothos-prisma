@@ -3,10 +3,11 @@ import PrismaPlugin from "@pothos/plugin-prisma";
 import { PrismaClient } from "@prisma/client";
 import { createYoga } from "graphql-yoga";
 import { createServer } from "node:http";
+import type PrismaTypes from "@pothos/plugin-prisma/generated";
 
 const prisma = new PrismaClient({});
 
-const builder = new SchemaBuilder({
+const builder = new SchemaBuilder<{ PrismaTypes: PrismaTypes }>({
   plugins: [PrismaPlugin],
   prisma: {
     client: prisma,
@@ -14,6 +15,24 @@ const builder = new SchemaBuilder({
     filterConnectionTotalCount: true,
     onUnusedQuery: process.env.NODE_ENV === "production" ? null : "warn",
   },
+});
+
+builder.prismaObject("UserInfo", {
+  description: "유저 정보",
+  fields: (t) => ({
+    userId: t.exposeID("userId", { description: "유저 아이디" }),
+    name: t.exposeString("name", { description: "이름" }),
+    phone: t.exposeString("phone", { description: "휴대폰 번호" }),
+  }),
+});
+
+builder.queryType({
+  fields: (t) => ({
+    selectUserList: t.prismaField({
+      type: "UserInfo",
+      resolve: async (query) => null,
+    }),
+  }),
 });
 
 builder.queryType({
