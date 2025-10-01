@@ -1,0 +1,798 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           Int           @id @default(autoincrement())
+  loginId      String        @unique(map: "UQ_admin_id") @map("login_id") @db.VarChar(200)
+  password     String        @db.VarChar(60)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.DateTime(0)
+  state        AdminState
+  inquiryChats InquiryChat[]
+
+  @@map("admin")
+}
+
+model Checklist {
+  id                       Int                       @id @default(autoincrement())
+  title                    String                    @db.VarChar(100)
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.DateTime(0)
+  type                     ChecklistType
+  checklistItems           ChecklistItem[]
+  checklistScoreConditions ChecklistScoreCondition[]
+  completedChecklists      CompletedChecklist[]
+  monthlyChecklist         MonthlyChecklist?
+  selfChecklist            SelfChecklist?
+
+  @@map("checklist")
+}
+
+model ChecklistItem {
+  id                   Int                   @id @default(autoincrement())
+  checklistId          Int                   @map("checklist_id")
+  content              String                @db.VarChar(100)
+  minSelection         Int                   @map("min_selection") @db.TinyInt
+  maxSelection         Int                   @map("max_selection") @db.TinyInt
+  sortOrder            Int                   @map("sort_order") @db.UnsignedTinyInt
+  directive            String?               @db.VarChar(100)
+  youtubeLink          String?               @map("youtube_link") @db.Text
+  imagesInternal       String?               @map("images_internal") @db.Text
+  youtubeVideoId       String?               @map("youtube_video_id") @db.VarChar(11)
+  checklist            Checklist             @relation(fields: [checklistId], references: [id], onUpdate: Restrict, map: "FK_checklist_item_checklist_id_checklist_id")
+  checklistItemOptions ChecklistItemOption[]
+
+  @@index([checklistId, sortOrder], map: "IX_checklist_item_checklist_sort_order")
+  @@map("checklist_item")
+}
+
+model ChecklistItemOption {
+  id              Int           @id @default(autoincrement())
+  checklistItemId Int           @map("checklist_item_id")
+  content         String        @db.VarChar(40)
+  score           Int           @db.TinyInt
+  checklistItem   ChecklistItem @relation(fields: [checklistItemId], references: [id], onUpdate: Restrict, map: "FK_self_answer_self_question_id_self_question_id")
+
+  @@index([checklistItemId], map: "FK_self_answer_self_question_id_self_question_id")
+  @@map("checklist_item_option")
+}
+
+model ChecklistScoreCondition {
+  id          Int       @id @default(autoincrement())
+  checklistId Int       @map("checklist_id")
+  content     String    @db.VarChar(100)
+  minScore    Int       @map("min_score") @db.SmallInt
+  maxScore    Int       @map("max_score") @db.SmallInt
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onUpdate: Restrict, map: "FK_checklist_score_condition_checklist_id_checklist_id")
+
+  @@index([checklistId], map: "FK_checklist_score_condition_checklist_id_checklist_id")
+  @@map("checklist_score_condition")
+}
+
+model ClinicHoursByDay {
+  day       Int     @id @db.TinyInt
+  isClosed  Boolean @default(false) @map("is_closed")
+  startTime String? @map("start_time") @db.VarChar(4)
+  endTime   String? @map("end_time") @db.VarChar(4)
+
+  @@map("clinic_hours_by_day")
+}
+
+model ClosedDate {
+  closedDate  String  @id @map("closed_date") @db.VarChar(8)
+  description String? @db.VarChar(100)
+
+  @@map("closed_date")
+}
+
+model CompletedChecklist {
+  id                                Int                                @id @default(autoincrement())
+  userId                            Int                                @map("user_id")
+  title                             String                             @db.VarChar(50)
+  totalScore                        Int                                @map("total_score") @db.SmallInt
+  diagnosisComment                  String?                            @map("diagnosis_comment") @db.VarChar(100)
+  createdAt                         DateTime                           @default(now()) @map("created_at") @db.DateTime(0)
+  type                              ChecklistType
+  checklistId                       Int?                               @map("checklist_id")
+  doneDate                          String                             @map("done_date") @db.VarChar(8)
+  year                              Int                                @db.SmallInt
+  month                             Int                                @db.TinyInt
+  days                              Int                                @db.TinyInt
+  isoWeekYear                       Int                                @map("iso_week_year") @db.SmallInt
+  isoWeek                           Int                                @map("iso_week") @db.TinyInt
+  checklist                         Checklist?                         @relation(fields: [checklistId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_completed_checklist_checklist_id_checklist_id")
+  user                              User                               @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_done_self_checklist_user_id_user_id")
+  completedChecklistItems           CompletedChecklistItem[]
+  completedChecklistScoreConditions CompletedChecklistScoreCondition[]
+
+  @@index([checklistId], map: "FK_completed_checklist_checklist_id_checklist_id")
+  @@index([userId], map: "FK_done_self_checklist_user_id_user_id")
+  @@map("completed_checklist")
+}
+
+model CompletedChecklistItem {
+  id                            Int                            @id @default(autoincrement())
+  completedChecklistId          Int                            @map("completed_checklist_id")
+  content                       String                         @db.VarChar(100)
+  sortOrder                     Int                            @map("sort_order") @db.UnsignedTinyInt
+  minSelection                  Int                            @map("min_selection") @db.TinyInt
+  maxSelection                  Int                            @map("max_selection") @db.TinyInt
+  directive                     String?                        @db.VarChar(100)
+  youtubeLink                   String?                        @map("youtube_link") @db.Text
+  imagesInternal                String?                        @map("images_internal") @db.Text
+  youtubeVideoId                String?                        @map("youtube_video_id") @db.VarChar(11)
+  completedChecklist            CompletedChecklist             @relation(fields: [completedChecklistId], references: [id], onUpdate: Restrict, map: "FK_done_self_question_done_self_checklist_id_done_self_checklist")
+  completedChecklistItemOptions CompletedChecklistItemOption[]
+
+  @@index([completedChecklistId], map: "FK_done_self_question_done_self_checklist_id_done_self_checklist")
+  @@map("completed_checklist_item")
+}
+
+model CompletedChecklistItemOption {
+  id                       Int                    @id @default(autoincrement())
+  completedChecklistItemId Int                    @map("completed_checklist_item_id")
+  content                  String                 @db.VarChar(40)
+  score                    Int                    @db.TinyInt
+  isSelected               Boolean                @map("is_selected")
+  completedChecklistItem   CompletedChecklistItem @relation(fields: [completedChecklistItemId], references: [id], onUpdate: Restrict, map: "FK_done_self_answer_done_self_question_id_done_self_question_id")
+
+  @@index([completedChecklistItemId], map: "FK_done_self_answer_done_self_question_id_done_self_question_id")
+  @@map("completed_checklist_item_option")
+}
+
+model CompletedChecklistScoreCondition {
+  id                   Int                @id @default(autoincrement())
+  completedChecklistId Int                @map("completed_checklist_id")
+  content              String             @db.VarChar(100)
+  maxScore             Int                @map("max_score") @db.SmallInt
+  minScore             Int                @map("min_score") @db.SmallInt
+  completedChecklist   CompletedChecklist @relation(fields: [completedChecklistId], references: [id], onUpdate: Restrict, map: "FK_completed_checklist_score_condition_completed_checklist_id_co")
+
+  @@index([completedChecklistId], map: "FK_completed_checklist_score_condition_completed_checklist_id_co")
+  @@map("completed_checklist_score_condition")
+}
+
+model DailyChecklist {
+  id                  Int                  @id @default(autoincrement())
+  userId              Int                  @map("user_id")
+  type                DailyChecklistType
+  title               String               @db.VarChar(50)
+  contentInternal     String               @map("content_internal") @db.Text
+  startDate           String               @map("start_date") @db.VarChar(8)
+  endDate             String               @map("end_date") @db.VarChar(8)
+  deletedAt           DateTime?            @map("deleted_at") @db.DateTime(0)
+  user                User                 @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_daily_checklist_user_id_user_id")
+  doneDailyChecklists DoneDailyChecklist[]
+  motionTestItems     MotionTestItem[]
+
+  @@index([userId], map: "FK_daily_checklist_user_id_user_id")
+  @@map("daily_checklist")
+}
+
+model DailyChecklistTemplate {
+  id                      Int                      @id @default(autoincrement())
+  type                    DailyChecklistType
+  title                   String                   @db.VarChar(50)
+  contentInternal         String                   @map("content_internal") @db.Text
+  deletedAt               DateTime?                @map("deleted_at") @db.DateTime(0)
+  motionTestTemplateItems MotionTestTemplateItem[]
+
+  @@map("daily_checklist_template")
+}
+
+model DoneDailyChecklist {
+  id                  Int                     @id @default(autoincrement())
+  userId              Int                     @map("user_id")
+  dailyChecklistId    Int?                    @map("daily_checklist_id")
+  type                DailyChecklistType
+  doneDate            String                  @map("done_date") @db.VarChar(8)
+  state               DoneDailyChecklistState
+  changedAt           DateTime                @map("changed_at") @db.DateTime(0)
+  rejectMemo          String?                 @map("reject_memo") @db.VarChar(100)
+  motionTestMemo      String?                 @map("motion_test_memo") @db.VarChar(100)
+  year                Int                     @db.SmallInt
+  month               Int                     @db.TinyInt
+  days                Int                     @db.TinyInt
+  isoWeekYear         Int                     @map("iso_week_year") @db.SmallInt
+  isoWeek             Int                     @map("iso_week") @db.TinyInt
+  dailyChecklist      DailyChecklist?         @relation(fields: [dailyChecklistId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_done_daily_checklist_daily_checklist_id_daily_checklist_id")
+  user                User                    @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_done_daily_checklist_user_id_user_id")
+  doneMotionTestItems DoneMotionTestItem[]
+
+  @@unique([doneDate, dailyChecklistId], map: "UQ_done_daily_checklist_date_checklist")
+  @@index([dailyChecklistId], map: "FK_done_daily_checklist_daily_checklist_id_daily_checklist_id")
+  @@index([userId], map: "FK_done_daily_checklist_user_id_user_id")
+  @@map("done_daily_checklist")
+}
+
+model DoneMotionTestItem {
+  id                     Int                @id @default(autoincrement())
+  doneDailyChecklistId   Int                @map("done_daily_checklist_id")
+  quantity               Float              @db.Float
+  description            String             @db.VarChar(10)
+  unit                   String             @db.VarChar(10)
+  originMotionTestItemId Int                @map("origin_motion_test_item_id")
+  doneDailyChecklist     DoneDailyChecklist @relation(fields: [doneDailyChecklistId], references: [id], onUpdate: Restrict, map: "FK_done_motion_test_item_done_daily_checklist_id_done_daily_chec")
+
+  @@index([doneDailyChecklistId], map: "FK_done_motion_test_item_done_daily_checklist_id_done_daily_chec")
+  @@map("done_motion_test_item")
+}
+
+model DopaminePattern {
+  id                   Int                 @id @default(autoincrement())
+  userId               Int                 @map("user_id")
+  type                 DopaminePatternType
+  intakeTime           String              @map("intake_time") @db.VarChar(4)
+  tempMedicineName     String?             @map("temp_medicine_name") @db.VarChar(30)
+  dosePerIntake        Decimal?            @map("dose_per_intake") @db.Decimal(5, 2)
+  medicationScheduleId Int?                @map("medication_schedule_id")
+  medicationSchedule   MedicationSchedule? @relation(fields: [medicationScheduleId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_dopamine_pattern_medication_schedule_id_medication_schedule_i")
+  user                 User                @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_dopamine_pattern_user_id_user_id")
+  patternSymptoms      PatternSymptom[]
+
+  @@index([medicationScheduleId], map: "FK_dopamine_pattern_medication_schedule_id_medication_schedule_i")
+  @@index([userId], map: "FK_dopamine_pattern_user_id_user_id")
+  @@map("dopamine_pattern")
+}
+
+model Faq {
+  id             Int      @id @default(autoincrement())
+  question       String   @db.VarChar(200)
+  answerInternal String   @map("answer_internal") @db.Text
+  answerSummary  String   @map("answer_summary") @db.VarChar(200)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt      DateTime @default(dbgenerated("('0000-00-00 00:00:00')")) @map("updated_at") @db.DateTime(0)
+
+  @@map("faq")
+}
+
+model InquiryChat {
+  id             String                @id @db.VarChar(26)
+  roomId         Int                   @map("room_id")
+  adminId        Int?                  @map("admin_id")
+  type           InquiryChatType
+  content        String                @db.VarChar(1000)
+  mediasInternal String?               @map("medias_internal") @db.Text
+  createdAt      DateTime              @default(now()) @map("created_at") @db.DateTime(0)
+  writerType     InquiryChatWriterType @map("writer_type")
+  admin          Admin?                @relation(fields: [adminId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_inquiry_chat_admin_id_admin_id")
+  inquiryRoom    InquiryRoom           @relation(fields: [roomId], references: [userId], onUpdate: Restrict, map: "FK_inquiry_chat_room_id_inquiry_room_user_id")
+
+  @@index([adminId], map: "FK_inquiry_chat_admin_id_admin_id")
+  @@index([roomId], map: "FK_inquiry_chat_room_id_inquiry_room_user_id")
+  @@map("inquiry_chat")
+}
+
+model InquiryRoom {
+  userId            Int           @id @map("user_id")
+  lastChatCreatedAt DateTime      @map("last_chat_created_at") @db.DateTime(0)
+  lastChatContent   String        @map("last_chat_content") @db.VarChar(1000)
+  inquiryChats      InquiryChat[]
+  user              User          @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_inquiry_room_user_id_user_id")
+
+  @@map("inquiry_room")
+}
+
+model MedicalDepartment {
+  id                           Int                            @id @default(autoincrement())
+  name                         String                         @db.VarChar(20)
+  requireMedicineType          Boolean                        @map("require_medicine_type")
+  deletedAt                    DateTime?                      @map("deleted_at") @db.DateTime(0)
+  medicalDepartmentMedicineMap MedicalDepartmentMedicineMap[]
+  medicationSchedules          MedicationSchedule[]
+
+  @@map("medical_department")
+}
+
+model MedicalDepartmentMedicineMap {
+  medicalDepartmentId Int               @map("medical_department_id")
+  medicineId          Int               @map("medicine_id")
+  medicalDepartment   MedicalDepartment @relation(fields: [medicalDepartmentId], references: [id], onUpdate: Restrict, map: "FK_medical_department_medicine_map_medical_department_id_medical")
+  medicine            Medicine          @relation(fields: [medicineId], references: [id], onUpdate: Restrict, map: "FK_medical_department_medicine_map_medicine_id_medicine_id")
+
+  @@id([medicalDepartmentId, medicineId])
+  @@index([medicineId], map: "FK_medical_department_medicine_map_medicine_id_medicine_id")
+  @@map("medical_department_medicine_map")
+}
+
+model MedicationSchedule {
+  id                  Int                               @id @default(autoincrement())
+  userId              Int                               @map("user_id")
+  medicalDepartmentId Int                               @map("medical_department_id")
+  medicine_type       medication_schedule_medicine_type
+  medicineId          Int?                              @map("medicine_id")
+  tempMedicineName    String                            @map("temp_medicine_name") @db.VarChar(30)
+  dosePerIntake       Decimal                           @map("dose_per_intake") @db.Decimal(5, 2)
+  dailyDosageCount    Int                               @map("daily_dosage_count") @db.TinyInt
+  imagesInternal      String?                           @map("images_internal") @db.Text
+  note                String?                           @db.VarChar(100)
+  dopaminePatterns    DopaminePattern[]
+  medicalDepartment   MedicalDepartment                 @relation(fields: [medicalDepartmentId], references: [id], onUpdate: Restrict, map: "FK_medication_schedule_medical_department_id_medical_department_")
+  medicine            Medicine?                         @relation(fields: [medicineId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_medication_schedule_medicine_id_medicine_id")
+  user                User                              @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_medication_schedule_user_id_user_id")
+
+  @@unique([userId, medicalDepartmentId, medicineId], map: "UQ_medication_schedule_user_department_medicine")
+  @@index([medicalDepartmentId], map: "FK_medication_schedule_medical_department_id_medical_department_")
+  @@index([medicineId], map: "FK_medication_schedule_medicine_id_medicine_id")
+  @@map("medication_schedule")
+}
+
+model Medicine {
+  id                           Int                            @id @default(autoincrement())
+  type                         MedicineType
+  name                         String                         @db.VarChar(30)
+  levodopa                     Int                            @db.SmallInt
+  dose                         Decimal                        @db.Decimal(7, 3)
+  unit                         String                         @db.VarChar(10)
+  medicalDepartmentMedicineMap MedicalDepartmentMedicineMap[]
+  medicationSchedules          MedicationSchedule[]
+
+  @@map("medicine")
+}
+
+model MonthlyChecklist {
+  checklistId             Int                          @id @map("checklist_id")
+  exposureType            MonthlyChecklistExposureType @map("exposure_type")
+  type                    MonthlyChecklistType
+  title                   String                       @db.VarChar(50)
+  description             String?                      @db.VarChar(100)
+  deletedAt               DateTime?                    @map("deleted_at") @db.DateTime(0)
+  startDate               String                       @map("start_date") @db.VarChar(8)
+  endDate                 String                       @map("end_date") @db.VarChar(8)
+  checklist               Checklist                    @relation(fields: [checklistId], references: [id], onUpdate: Restrict, map: "FK_monthly_checklist_id_checklist_id")
+  userMonthlyChecklistMap UserMonthlyChecklistMap[]
+
+  @@map("monthly_checklist")
+}
+
+model MotionTestItem {
+  id               Int            @id @default(autoincrement())
+  dailyChecklistId Int            @map("daily_checklist_id")
+  description      String         @db.VarChar(10)
+  unit             String         @db.VarChar(10)
+  dailyChecklist   DailyChecklist @relation(fields: [dailyChecklistId], references: [id], onUpdate: Restrict, map: "FK_motion_test_item_daily_checklist_id_daily_checklist_id")
+
+  @@index([dailyChecklistId], map: "FK_motion_test_item_daily_checklist_id_daily_checklist_id")
+  @@map("motion_test_item")
+}
+
+model MotionTestTemplateItem {
+  id                       Int                    @id @default(autoincrement())
+  dailyChecklistTemplateId Int                    @map("daily_checklist_template_id")
+  description              String                 @db.VarChar(10)
+  unit                     String                 @db.VarChar(10)
+  dailyChecklistTemplate   DailyChecklistTemplate @relation(fields: [dailyChecklistTemplateId], references: [id], onUpdate: Restrict, map: "FK_motion_test_template_item_daily_checklist_template_id_daily_c")
+
+  @@index([dailyChecklistTemplateId], map: "FK_motion_test_template_item_daily_checklist_template_id_daily_c")
+  @@map("motion_test_template_item")
+}
+
+model Notice {
+  id              Int             @id @default(autoincrement())
+  categoryId      Int?            @map("category_id")
+  title           String          @db.VarChar(50)
+  contentInternal String          @map("content_internal") @db.Text
+  summary         String          @db.VarChar(200)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt       DateTime?       @map("updated_at") @db.DateTime(0)
+  noticeCategory  NoticeCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_announcement_category_id_announcement_category_id")
+
+  @@index([categoryId], map: "FK_announcement_category_id_announcement_category_id")
+  @@index([createdAt], map: "IX_notice_created_at")
+  @@map("notice")
+}
+
+model NoticeCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(20)
+  sortOrder Int      @map("sort_order")
+  notices   Notice[]
+
+  @@index([sortOrder], map: "IX_notice_category_sort_order")
+  @@map("notice_category")
+}
+
+model Notification {
+  id                Int              @id @default(autoincrement())
+  type              NotificationType
+  userId            Int?             @map("user_id")
+  title             String           @db.VarChar(100)
+  content           String           @db.VarChar(1000)
+  extraDataInternal String?          @map("extra_data_internal") @db.VarChar(1000)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.DateTime(0)
+  isRead            Boolean          @default(false) @map("is_read")
+  isActive          Boolean          @default(true) @map("is_active")
+
+  @@index([userId], map: "IX_notification_user_id")
+  @@map("notification")
+}
+
+model PackageDelivery {
+  id               Int            @id @default(autoincrement())
+  productPackageId Int            @map("product_package_id")
+  days             Int            @db.SmallInt
+  deliveredAt      DateTime       @default(now()) @map("delivered_at") @db.DateTime(0)
+  productPackage   ProductPackage @relation(fields: [productPackageId], references: [id], onUpdate: Restrict, map: "FK_package_delivery_product_package_id_product_package_id")
+
+  @@index([productPackageId], map: "FK_package_delivery_product_package_id_product_package_id")
+  @@map("package_delivery")
+}
+
+model PackagePayment {
+  id               String         @id @db.VarChar(26)
+  productPackageId Int            @map("product_package_id")
+  paidDays         Int            @map("paid_days") @db.SmallInt
+  paidAt           DateTime       @map("paid_at") @db.DateTime(0)
+  productPackage   ProductPackage @relation(fields: [productPackageId], references: [id], onUpdate: Restrict, map: "FK_package_payment_product_package_id_product_package_id")
+
+  @@index([productPackageId], map: "FK_package_payment_product_package_id_product_package_id")
+  @@map("package_payment")
+}
+
+model PatternSymptom {
+  dopaminePatternId Int             @map("dopamine_pattern_id")
+  symptomId         Int             @map("symptom_id")
+  onTime            String          @map("on_time") @db.VarChar(4)
+  offTime           String          @map("off_time") @db.VarChar(4)
+  onIntensity       Int             @map("on_intensity") @db.TinyInt
+  offIntensity      Int             @map("off_intensity") @db.TinyInt
+  dopaminePattern   DopaminePattern @relation(fields: [dopaminePatternId], references: [id], onUpdate: Restrict, map: "FK_pattern_symptom_dopamine_pattern_id_dopamine_pattern_id")
+  symptom           Symptom         @relation(fields: [symptomId], references: [id], onUpdate: Restrict, map: "FK_pattern_symptom_symptom_id_symptom_id")
+
+  @@id([dopaminePatternId, symptomId])
+  @@index([symptomId], map: "FK_pattern_symptom_symptom_id_symptom_id")
+  @@map("pattern_symptom")
+}
+
+model ProductPackage {
+  id                       Int                    @id @default(autoincrement())
+  userId                   Int                    @map("user_id")
+  name                     String                 @db.VarChar(30)
+  totalPaidDays            Int                    @map("total_paid_days") @db.SmallInt
+  totalDeliveredDays       Int                    @map("total_delivered_days") @db.SmallInt
+  lastDeliveredAt          DateTime?              @map("last_delivered_at") @db.DateTime(0)
+  updatedAt                DateTime?              @map("updated_at") @db.DateTime(0)
+  productPackageTemplateId Int                    @map("product_package_template_id")
+  packageDeliveries        PackageDelivery[]
+  packagePayments          PackagePayment[]
+  productPackageTemplate   ProductPackageTemplate @relation(fields: [productPackageTemplateId], references: [id], onUpdate: Restrict, map: "FK_product_package_product_package_template_id_product_package_t")
+  user                     User                   @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_product_package_user_id_user_id")
+
+  @@unique([userId, productPackageTemplateId], map: "UQ_product_package_user_package_template")
+  @@index([productPackageTemplateId], map: "FK_product_package_product_package_template_id_product_package_t")
+  @@map("product_package")
+}
+
+model ProductPackageTemplate {
+  id              Int              @id @default(autoincrement())
+  name            String           @db.VarChar(30)
+  deletedAt       DateTime?        @map("deleted_at") @db.DateTime(0)
+  productPackages ProductPackage[]
+
+  @@map("product_package_template")
+}
+
+model Reservation {
+  id             String           @id @db.VarChar(26)
+  userId         Int              @map("user_id")
+  treatmentDate  String           @map("treatment_date") @db.VarChar(8)
+  isAm           Boolean          @map("is_am")
+  isPm           Boolean          @map("is_pm")
+  state          ReservationState
+  stateChangedAt DateTime         @map("state_changed_at") @db.DateTime(0)
+  memo           String?          @db.VarChar(100)
+  startTime      String?          @map("start_time") @db.VarChar(4)
+  endTime        String?          @map("end_time") @db.VarChar(4)
+  user           User             @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_reservation_user_id_user_id")
+  visitHistories VisitHistory[]
+
+  @@index([userId], map: "FK_reservation_user_id_user_id")
+  @@index([treatmentDate], map: "IX_reservation_treatment_date")
+  @@map("reservation")
+}
+
+model SelfChecklist {
+  checklistId Int       @id @map("checklist_id")
+  title       String    @db.VarChar(50)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  publishedAt DateTime? @map("published_at") @db.DateTime(0)
+  isDefault   Boolean   @default(false) @map("is_default")
+  checklist   Checklist @relation(fields: [checklistId], references: [id], onUpdate: Restrict, map: "FK_self_checklist_id_checklist_id")
+
+  @@map("self_checklist")
+}
+
+model SiteInformation {
+  id          String              @id @db.VarChar(50)
+  type        SiteInformationType
+  description String              @db.VarChar(100)
+  content     String              @db.LongText
+
+  @@map("site_information")
+}
+
+model Symptom {
+  id              Int                   @id @default(autoincrement())
+  name            String                @db.VarChar(30)
+  deletedAt       DateTime?             @map("deleted_at") @db.DateTime(0)
+  exposure_type   symptom_exposure_type
+  patternSymptoms PatternSymptom[]
+  userSymptomMap  UserSymptomMap[]
+
+  @@map("symptom")
+}
+
+model Term {
+  id              Int       @id @default(autoincrement())
+  revision        Int
+  type            TermType
+  contentInternal String    @map("content_internal") @db.Text
+  isPublished     Boolean   @map("is_published")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt       DateTime? @map("updated_at") @db.DateTime(0)
+  publishedAt     DateTime? @map("published_at") @db.DateTime(0)
+  enforceAt       DateTime? @map("enforce_at") @db.DateTime(0)
+
+  @@map("term")
+}
+
+model User {
+  id                      Int                       @id @default(autoincrement())
+  joinedAt                DateTime                  @default(now()) @map("joined_at") @db.DateTime(0)
+  withdrawnAt             DateTime?                 @map("withdrawn_at") @db.DateTime(0)
+  completedChecklists     CompletedChecklist[]
+  dailyChecklists         DailyChecklist[]
+  doneDailyChecklists     DoneDailyChecklist[]
+  dopaminePatterns        DopaminePattern[]
+  inquiryRoom             InquiryRoom?
+  medicationSchedules     MedicationSchedule[]
+  productPackages         ProductPackage[]
+  reservations            Reservation[]
+  userAuths               UserAuth[]
+  userInfo                UserInfo?
+  userMonthlyChecklistMap UserMonthlyChecklistMap[]
+  userSymptomMap          UserSymptomMap[]
+  visitHistories          VisitHistory[]
+
+  @@map("user")
+}
+
+model UserAuth {
+  loginId   String            @map("login_id") @db.VarChar(200)
+  loginType UserAuthLoginType @map("login_type")
+  userId    Int               @map("user_id")
+  password  String?           @db.VarChar(60)
+  user      User              @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_user_auth_user_id_user_id")
+
+  @@id([loginId, loginType])
+  @@index([userId], map: "FK_user_auth_user_id_user_id")
+  @@map("user_auth")
+}
+
+model UserInfo {
+  userId               Int            @id @map("user_id")
+  phone                String         @db.VarChar(14)
+  name                 String         @db.VarChar(50)
+  birth                String         @db.VarChar(6)
+  gender               UserInfoGender
+  address              String         @db.VarChar(50)
+  addressDetail        String         @map("address_detail") @db.VarChar(95)
+  imageInternal        String?        @map("image_internal") @db.Text
+  hasVisited           Boolean        @default(false) @map("has_visited")
+  guardianName         String?        @map("guardian_name") @db.VarChar(50)
+  guardianPhone        String?        @map("guardian_phone") @db.VarChar(14)
+  guardianRelationship String?        @map("guardian_relationship") @db.VarChar(10)
+  user                 User           @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_user_info_user_id_user_id")
+
+  @@map("user_info")
+}
+
+model UserMonthlyChecklistMap {
+  userId             Int              @map("user_id")
+  monthlyChecklistId Int              @map("monthly_checklist_id")
+  monthlyChecklist   MonthlyChecklist @relation(fields: [monthlyChecklistId], references: [checklistId], onUpdate: Restrict, map: "FK_user_monthly_checklist_map_monthly_checklist_id_monthly_check")
+  user               User             @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_user_monthly_checklist_map_user_id_user_id")
+
+  @@id([userId, monthlyChecklistId])
+  @@index([monthlyChecklistId], map: "FK_user_monthly_checklist_map_monthly_checklist_id_monthly_check")
+  @@map("user_monthly_checklist_map")
+}
+
+model UserSymptomMap {
+  userId    Int     @map("user_id")
+  symptomId Int     @map("symptom_id")
+  symptom   Symptom @relation(fields: [symptomId], references: [id], onUpdate: Restrict, map: "FK_user_symptom_map_symptom_id_symptom_id")
+  user      User    @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_user_symptom_map_user_id_user_id")
+
+  @@id([userId, symptomId])
+  @@index([symptomId], map: "FK_user_symptom_map_symptom_id_symptom_id")
+  @@map("user_symptom_map")
+}
+
+model UserToken {
+  token  String @id @db.VarChar(200)
+  userId Int?   @map("user_id")
+
+  @@index([userId], map: "IX_user_token_user_id")
+  @@map("user_token")
+}
+
+model Verification {
+  id                 Int       @id @default(autoincrement())
+  target             String    @db.VarChar(300)
+  verificationNumber String    @map("verification_number") @db.Char(6)
+  expiredAt          DateTime? @map("expired_at") @db.DateTime(0)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@map("verification")
+}
+
+model VerificationIpQuota {
+  id            String   @id @db.VarChar(64)
+  ip            String   @db.VarChar(40)
+  date          String   @db.VarChar(8)
+  requestCount  Int      @map("request_count")
+  lastRequestAt DateTime @map("last_request_at") @db.DateTime(0)
+
+  @@map("verification_ip_quota")
+}
+
+model VisitHistory {
+  id             Int          @id @default(autoincrement())
+  userId         Int          @map("user_id")
+  reservationId  String?      @map("reservation_id") @db.VarChar(26)
+  visitedAt      DateTime     @map("visited_at") @db.DateTime(0)
+  visitReason    String?      @map("visit_reason") @db.VarChar(100)
+  treatmentNotes String?      @map("treatment_notes") @db.VarChar(100)
+  reservation    Reservation? @relation(fields: [reservationId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_visit_history_reservation_id_reservation_id")
+  user           User         @relation(fields: [userId], references: [id], onUpdate: Restrict, map: "FK_visit_history_user_id_user_id")
+
+  @@index([reservationId], map: "FK_visit_history_reservation_id_reservation_id")
+  @@index([userId], map: "FK_visit_history_user_id_user_id")
+  @@map("visit_history")
+}
+
+enum MedicineType {
+  NONE
+  DOPAMINE
+  AGONIST
+  UNKNOWN
+
+  @@map("medicine_type")
+}
+
+enum SiteInformationType {
+  ALL
+
+  @@map("site_information_type")
+}
+
+enum NotificationType {
+  SYSTEM
+  ADMIN
+  NOTICE
+
+  @@map("notification_type")
+}
+
+enum MonthlyChecklistExposureType {
+  PRIVATE
+  PUBLIC
+  USERS
+  NON_VISITOR
+
+  @@map("monthly_checklist_exposure_type")
+}
+
+enum UserAuthLoginType {
+  IDPW
+  NAVER
+  KAKAO
+  APPLE
+
+  @@map("user_auth_login_type")
+}
+
+enum DailyChecklistType {
+  EXERCISE_PRESCRIPTION
+  LIFE_PRESCRIPTION
+  HOME_CARE
+  MOTION_TEST
+
+  @@map("daily_checklist_type")
+}
+
+enum MonthlyChecklistType {
+  MOTILITY
+  NON_MOTILITY
+
+  @@map("monthly_checklist_type")
+}
+
+enum TermType {
+  PRIVACY
+  SERVICE
+  MARKETING
+  WITHDRAW
+
+  @@map("term_type")
+}
+
+enum DopaminePatternType {
+  DOPAMINE
+  AGONIST
+  MEALS
+
+  @@map("dopamine_pattern_type")
+}
+
+enum ChecklistType {
+  SELF
+  MONTHLY
+
+  @@map("checklist_type")
+}
+
+enum InquiryChatType {
+  TEXT
+  IMAGE
+  VIDEO
+
+  @@map("inquiry_chat_type")
+}
+
+enum UserInfoGender {
+  MALE
+  FEMALE
+
+  @@map("user_info_gender")
+}
+
+enum AdminState {
+  ACTIVE
+  DELETED
+
+  @@map("admin_state")
+}
+
+enum ReservationState {
+  CONFIRMING
+  CONFIRMED
+  CANCELED
+  REQUEST_CANCEL
+  COMPLETED
+
+  @@map("reservation_state")
+}
+
+enum DoneDailyChecklistState {
+  YES
+  NO
+
+  @@map("done_daily_checklist_state")
+}
+
+enum InquiryChatWriterType {
+  USER
+  ADMIN
+  AUTO_RESPONSE
+
+  @@map("inquiry_chat_writer_type")
+}
+
+enum symptom_exposure_type {
+  USERS
+  PUBLIC
+}
+
+enum medication_schedule_medicine_type {
+  NONE
+  DOPAMINE
+  AGONIST
+  UNKNOWN
+}
