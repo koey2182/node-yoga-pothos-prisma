@@ -17,6 +17,24 @@ const builder = new SchemaBuilder<{ PrismaTypes: PrismaTypes }>({
   },
 });
 
+builder.prismaObject("User", {
+  description: "유저",
+  include: { userInfo: true },
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    // joinedAt: t.expose("joinedAt", { description: "가입한 일시", type: "DateTime" })
+    userInfo: t.relation("userInfo", { description: "유저 정보" }),
+    userAuths: t.relation("userAuths", {
+      description: "유저 인증",
+      args: { userId: t.arg.int({ description: "유저 아이디" }) },
+      query: ({ userId }, ctx) => (userId ? { where: { userId } } : {}),
+    }),
+    name: t.string({
+      resolve: (src) => src.userInfo?.name,
+    }),
+  }),
+});
+
 builder.prismaObject("UserInfo", {
   description: "유저 정보",
   fields: (t) => ({
@@ -26,17 +44,30 @@ builder.prismaObject("UserInfo", {
   }),
 });
 
-builder.queryType({
+builder.prismaObject("UserAuth", {
+  description: "유저 인증",
   fields: (t) => ({
-    selectUserList: t.prismaField({
-      type: "UserInfo",
-      resolve: async (query) => null,
-    }),
+    userId: t.exposeInt("userId"),
+    loginType: t.exposeString("loginType"),
+    loginId: t.exposeString("loginId"),
   }),
 });
 
 builder.queryType({
   fields: (t) => ({
+    selectUserList: t.prismaField({
+      description: "유저 조회",
+      type: "User",
+      resolve: async (query, src, args, ctx, info) =>
+        await prisma.user.findFirst({ ...query }),
+    }),
+    selectUserInfoList: t.prismaField({
+      type: "UserInfo",
+      resolve: async (query, src, args, ctx, info) =>
+        await prisma.userInfo.findFirst({
+          ...query,
+        }),
+    }),
     hello: t.string({
       args: { name: t.arg.string() },
       resolve: (src, { name }) => `hello, ${name || "world"}!`,
